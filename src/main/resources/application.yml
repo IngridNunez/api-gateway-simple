@@ -1,0 +1,121 @@
+server:
+  port: 8222
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # 1. Ruta hacia BFF (Autenticación - público)
+        - id: bff-auth-service
+          uri: lb://bff-back-for-frontend
+          predicates:
+            - Path=/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: auth-service
+                fallbackUri: forward:/fallback/auth
+
+        # 2. Ruta hacia MS-Carrito (protegido)
+        - id: ms-carrito
+          uri: lb://ms-carrito
+          predicates:
+            - Path=/api/v1/Carrito/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: carrito-service
+                fallbackUri: forward:/fallback/carrito
+
+        # 3. Ruta hacia MS-Usuarios (protegido)
+        - id: ms-usuarios
+          uri: lb://ms-usuarios
+          predicates:
+            - Path=/api/v1/usuarios/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: usuarios-service
+                fallbackUri: forward:/fallback/usuarios
+
+        # 4. Ruta hacia MS-Eventos (protegido)
+        - id: ms-eventos
+          uri: lb://ms-eventos
+          predicates:
+            - Path=/api/v1/eventos/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: eventos-service
+                fallbackUri: forward:/fallback/eventos
+
+        # 5. Ruta hacia MS-Donaciones (protegido)
+        - id: ms-donaciones
+          uri: lb://ms-donaciones
+          predicates:
+            - Path=/api/v1/donaciones/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: donaciones-service
+                fallbackUri: forward:/fallback/donaciones
+
+        # 6. Ruta hacia MS-Mensajeria (protegido)
+        - id: ms-mensajeria
+          uri: lb://ms-mensajeria
+          predicates:
+            - Path=/api/v1/mensajeria/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: mensajeria-service
+                fallbackUri: forward:/fallback/mensajeria
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:ticketti-secret-key-2024-for-jwt-signing-and-verification-only}
+
+# Eureka Client
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 5000
+    instances:
+      auth-service:
+        baseConfig: default
+      carrito-service:
+        baseConfig: default
+      usuarios-service:
+        baseConfig: default
+      eventos-service:
+        baseConfig: default
+      donaciones-service:
+        baseConfig: default
+      mensajeria-service:
+        baseConfig: default
+
+# Logging
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
