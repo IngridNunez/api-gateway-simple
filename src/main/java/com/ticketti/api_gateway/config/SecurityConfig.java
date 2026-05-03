@@ -33,8 +33,8 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/eureka/**"
                         ).permitAll()
-                        // Todas las demás rutas requieren autenticación
-                        .anyExchange().permitAll()
+                        // ! Todas las demás rutas requieren autenticación
+                        .anyExchange().authenticated()
                 );
 
         return http.build();
