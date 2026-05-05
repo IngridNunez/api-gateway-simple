@@ -6,6 +6,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -14,6 +15,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Slf4j
@@ -47,6 +49,16 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
         log.debug("Processing request: {}", path);
 
+        // Permitir preflight CORS sin autenticación
+        if (HttpMethod.OPTIONS.equals(request.getMethod())) {
+            return handlePreflight(exchange);
+        }
+
+        // Registro público de usuarios (sin token)
+        if (HttpMethod.POST.equals(request.getMethod()) && "/api/v1/usuarios".equals(path)) {
+            return chain.filter(exchange);
+        }
+
         // Verificar si la ruta es pública
         if (isPublicPath(path)) {
             log.debug("Public path accessed: {}", path);
@@ -64,7 +76,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         String token = authHeader.substring(7);
 
         // Validar el token
-        if (!jwtService.validateToken(token)) {
+        if (!Boolean.TRUE.equals(jwtService.validateToken(token))) {
             log.warn("Invalid or expired token for path: {}", path);
             return onError(exchange, "Invalid or expired token", HttpStatus.UNAUTHORIZED);
         }
@@ -86,18 +98,40 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private boolean isPublicPath(String path) {
         return PUBLIC_PATHS.stream()
-                .anyMatch(publicPath -> path.startsWith(publicPath));
+                .anyMatch(path::startsWith);
+    }
+
+    private Mono<Void> handlePreflight(ServerWebExchange exchange) {
+        ServerHttpResponse response = exchange.getResponse();
+        String origin = exchange.getRequest().getHeaders().getFirst(HttpHeaders.ORIGIN);
+
+        response.setStatusCode(HttpStatus.OK);
+        addCorsHeaders(response, origin);
+        return response.setComplete();
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus) {
         ServerHttpResponse response = exchange.getResponse();
+        String origin = exchange.getRequest().getHeaders().getFirst(HttpHeaders.ORIGIN);
+
         response.setStatusCode(httpStatus);
         response.getHeaders().add("Content-Type", "application/json");
+        addCorsHeaders(response, origin);
 
         String errorBody = String.format("{\"error\": \"%s\", \"status\": %d}", err, httpStatus.value());
 
         return response.writeWith(Mono.just(response.bufferFactory()
-                .wrap(errorBody.getBytes())));
+                .wrap(errorBody.getBytes(StandardCharsets.UTF_8))));
+    }
+
+    private void addCorsHeaders(ServerHttpResponse response, String origin) {
+        if (origin != null && !origin.isBlank()) {
+            response.getHeaders().set("Access-Control-Allow-Origin", origin);
+        }
+        response.getHeaders().set("Vary", "Origin");
+        response.getHeaders().set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
+        response.getHeaders().set("Access-Control-Allow-Headers", "Authorization,Content-Type,Accept,Origin");
+        response.getHeaders().set("Access-Control-Allow-Credentials", "true");
     }
 
     @Override
