@@ -58,8 +58,9 @@ public class JwtService {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public Set<String> extractRoles(String token) {
         Claims claims = extractAllClaims(token);
-        return claims.get("roles", Set.class);
+        return (Set<String>) claims.get("roles", Set.class);
     }
 }
