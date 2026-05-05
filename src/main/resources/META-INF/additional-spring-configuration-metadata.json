@@ -1,0 +1,24 @@
+{
+  "properties": [
+    {
+      "name": "spring.cloud.gateway.discovery.locator.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service registry integration for gateway routes"
+    },
+    {
+      "name": "spring.cloud.gateway.discovery.locator.lower-case-service-id",
+      "type": "java.lang.Boolean",
+      "description": "Convert service names to lowercase"
+    },
+    {
+      "name": "spring.cloud.gateway.globalcors.cors-configurations",
+      "type": "java.util.Map",
+      "description": "Global CORS configuration for gateway routes"
+    },
+    {
+      "name": "spring.cloud.gateway.routes",
+      "type": "java.util.List",
+      "description": "Gateway routes definition"
+    }
+  ]
+}
