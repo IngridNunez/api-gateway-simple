@@ -59,6 +59,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
+        // Lectura pública de eventos para visitantes (home, listado y búsqueda).
+        if (HttpMethod.GET.equals(request.getMethod()) && isPublicEventosPath(path)) {
+            return chain.filter(exchange);
+        }
+
         // Verificar si la ruta es pública
         if (isPublicPath(path)) {
             log.debug("Public path accessed: {}", path);
@@ -99,6 +104,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private boolean isPublicPath(String path) {
         return PUBLIC_PATHS.stream()
                 .anyMatch(path::startsWith);
+    }
+
+    private boolean isPublicEventosPath(String path) {
+        return path.startsWith("/api/v1/Eventos/")
+                || path.startsWith("/api/v1/eventos/");
     }
 
     private Mono<Void> handlePreflight(ServerWebExchange exchange) {
