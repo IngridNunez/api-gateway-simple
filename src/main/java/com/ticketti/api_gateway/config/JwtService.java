@@ -1,17 +1,19 @@
 package com.ticketti.api_gateway.config;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Set;
 import java.util.function.Function;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -61,6 +63,12 @@ public class JwtService {
     @SuppressWarnings("unchecked")
     public Set<String> extractRoles(String token) {
         Claims claims = extractAllClaims(token);
-        return (Set<String>) claims.get("roles", Set.class);
+        Object rolesObj = claims.get("roles");
+        if (rolesObj instanceof Set) {
+            return (Set<String>) rolesObj;
+        } else if (rolesObj instanceof java.util.List) {
+            return new java.util.HashSet<>((java.util.List<String>) rolesObj);
+        }
+        return null;
     }
 }
