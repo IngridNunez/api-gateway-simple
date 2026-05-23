@@ -16,6 +16,16 @@ import reactor.core.publisher.Mono;
 @Component
 public class RequestIdGlobalFilter implements GlobalFilter, Ordered {
 
+    /**
+     * Generates or propagates a request ID for tracing. If the incoming request
+     * doesn't have an X-Request-ID header, a new UUID is generated. The request
+     * ID is added to both the request headers and response headers for tracing
+     * purposes.
+     *
+     * @param exchange the server web exchange
+     * @param chain the gateway filter chain
+     * @return Mono that completes when the request processing is done
+     */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
@@ -35,6 +45,12 @@ public class RequestIdGlobalFilter implements GlobalFilter, Ordered {
         return chain.filter(mutatedExchange);
     }
 
+    /**
+     * Defines the execution order of this filter. Set to highest precedence to
+     * ensure request ID is assigned before any other processing occurs.
+     *
+     * @return the order of precedence for this filter
+     */
     @Override
     public int getOrder() {
         return Ordered.HIGHEST_PRECEDENCE;
