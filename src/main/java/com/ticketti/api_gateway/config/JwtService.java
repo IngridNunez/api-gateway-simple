@@ -17,8 +17,14 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret:ticketti-secret-key-2024-for-jwt-signing-and-verification-only}")
+    @Value("${jwt.secret}")
     private String secretKey;
+
+    @Value("${jwt.issuer:}")
+    private String issuer;
+
+    @Value("${jwt.audience:}")
+    private String audience;
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
@@ -45,22 +51,50 @@ public class JwtService {
                 .getPayload();
     }
 
-    private Boolean isTokenExpired(String token) {
+    private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
-    public Boolean validateToken(String token) {
+    public boolean validateToken(String token) {
         try {
-            return !isTokenExpired(token);
+            Claims claims = extractAllClaims(token);
+            if (isTokenExpired(token)) {
+                return false;
+            }
+            return isValidIssuer(claims) && isValidAudience(claims);
         } catch (Exception e) {
             log.error("Token validation error: {}", e.getMessage());
             return false;
         }
     }
 
+    private boolean isValidIssuer(Claims claims) {
+        if (issuer == null || issuer.isEmpty()) {
+            return true;
+        }
+
+        return issuer.equals(claims.getIssuer());
+    }
+
+    private boolean isValidAudience(Claims claims) {
+        if (audience == null || audience.isEmpty()) {
+            return true;
+        }
+
+        Object tokenAudience = claims.get("aud");
+        if (tokenAudience instanceof String audienceValue) {
+            return audience.equals(audienceValue);
+        }
+        if (tokenAudience instanceof Set<?> audienceValues) {
+            return audienceValues.contains(audience);
+        }
+
+        return false;
+    }
+
     @SuppressWarnings("unchecked")
     public Set<String> extractRoles(String token) {
         Claims claims = extractAllClaims(token);
-        return (Set<String>) claims.get("roles", Set.class);
+        return claims.get("roles", Set.class);
     }
 }
