@@ -34,18 +34,7 @@ spring:
                     name: carrito-service
                     fallbackUri: forward:/fallback/carrito
 
-            # 3. Ruta hacia MS-Usuarios (endpoint base)
-            - id: ms-usuarios-root
-              uri: lb://ms-usuarios
-              predicates:
-                - Path=/api/v1/usuarios
-              filters:
-                - name: CircuitBreaker
-                  args:
-                    name: usuarios-service
-                    fallbackUri: forward:/fallback/usuarios
-
-            # 3b. Ruta hacia MS-Usuarios (subrutas)
+            # 3. Ruta hacia MS-Usuarios (subrutas)
             - id: ms-usuarios-subpaths
               uri: lb://ms-usuarios
               predicates:
@@ -104,7 +93,9 @@ spring:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:ticketti-secret-key-2024-for-jwt-signing-and-verification-only}
+  secret: ${JWT_SECRET}
+  issuer: ${JWT_ISSUER:}
+  audience: ${JWT_AUDIENCE:}
 
 # Eureka Client
 eureka:
@@ -122,9 +113,9 @@ resilience4j:
         slidingWindowSize: 10
         permittedNumberOfCallsInHalfOpenState: 5
         failureRateThreshold: 50
-        waitDurationInOpenState: 10000
+        waitDurationInOpenState: 30000
         slowCallRateThreshold: 80
-        slowCallDurationThreshold: 5000
+        slowCallDurationThreshold: 2000
     instances:
       auth-service:
         baseConfig: default
@@ -142,8 +133,8 @@ resilience4j:
 # Logging
 logging:
   level:
-    org.springframework.cloud.gateway: INFO
-    org.springframework.security: INFO
+    '[org.springframework.cloud.gateway]': INFO
+    '[org.springframework.security]': INFO
 
 management:
   endpoints:
