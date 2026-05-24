@@ -12,19 +12,25 @@ import org.springframework.web.server.ServerWebExchange;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+/**
+ * Filtro global que asigna un identificador único de solicitud (X-Request-ID)
+ * para permitir la trazabilidad a través de los microservicios.
+ * Si la solicitud entrante ya incluye el header, lo propaga; de lo contrario,
+ * genera un UUID nuevo.
+ */
 @Slf4j
 @Component
 public class RequestIdGlobalFilter implements GlobalFilter, Ordered {
 
     /**
-     * Generates or propagates a request ID for tracing. If the incoming request
-     * doesn't have an X-Request-ID header, a new UUID is generated. The request
-     * ID is added to both the request headers and response headers for tracing
-     * purposes.
+     * Genera o propaga un identificador de solicitud para trazabilidad.
+     * Si la solicitud entrante no tiene el encabezado X-Request-ID, se genera
+     * un nuevo UUID. El identificador se agrega tanto a la solicitud como a la
+     * respuesta para su seguimiento.
      *
-     * @param exchange the server web exchange
-     * @param chain the gateway filter chain
-     * @return Mono that completes when the request processing is done
+     * @param exchange intercambio del servidor web
+     * @param chain cadena de filtros del gateway
+     * @return Mono que completa el procesamiento de la solicitud
      */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -46,10 +52,11 @@ public class RequestIdGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * Defines the execution order of this filter. Set to highest precedence to
-     * ensure request ID is assigned before any other processing occurs.
+     * Define el orden de ejecución de este filtro.
+     * Se establece con la máxima precedencia para asegurar que el identificador
+     * de solicitud se asigne antes que cualquier otro procesamiento.
      *
-     * @return the order of precedence for this filter
+     * @return orden de precedencia del filtro
      */
     @Override
     public int getOrder() {
