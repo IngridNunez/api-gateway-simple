@@ -2,7 +2,6 @@ package com.ticketti.api_gateway.filter;
 
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -25,8 +24,19 @@ import reactor.core.publisher.Mono;
 @Component
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
-    @Autowired
-    private JwtService jwtService;
+    private static final String HEADER_X_FORWARDED_PROTO = "X-Forwarded-Proto";
+    private static final String HEADER_X_REQUEST_ID = "X-Request-ID";
+
+    private final JwtService jwtService;
+
+    /**
+     * Constructor con inyección de dependencia mediante Lombok.
+     *
+     * @param jwtService servicio para manejo de tokens JWT
+     */
+    public JwtAuthenticationFilter(JwtService jwtService) {
+        this.jwtService = jwtService;
+    }
 
     /**
      * Filtra las peticiones entrantes validando el token JWT. Las rutas
@@ -40,6 +50,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
+        String requestId = request.getHeaders().getFirst(HEADER_X_REQUEST_ID);
 
         if (esRutaPublica(path)) {
             return chain.filter(exchange);
@@ -48,7 +59,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("Falta o es invalido el header Authorization para la ruta: {}", path);
+            log.warn("Falta o es invalido el header Authorization para la ruta: {}, requestId={}", path, requestId);
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
@@ -56,7 +67,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         String token = authHeader.substring(7);
 
         if (!jwtService.validateToken(token)) {
-            log.warn("Token JWT invalido o expirado para la ruta: {}", path);
+            log.warn("Token JWT invalido o expirado para la ruta: {}, requestId={}", path, requestId);
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
@@ -67,7 +78,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         log.debug("Usuario autenticado: {}, roles: {}", username, roles);
 
         ServerHttpRequest.Builder builder = request.mutate()
-                .header("X-Usuario", username);
+                .header("X-Usuario", username)
+                .header("X-Forwarded-For", request.getRemoteAddress() != null
+                        ? request.getRemoteAddress().getAddress().getHostAddress() : "unknown")
+            .header(HEADER_X_FORWARDED_PROTO, obtenerForwardedProto(request))
+            .header(HEADER_X_REQUEST_ID, requestId != null && !requestId.isBlank() ? requestId : "unknown");
 
         if (roles != null && !roles.isEmpty()) {
             builder.header("X-Usuario-Rol", String.join(",", roles));
@@ -76,6 +91,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         return chain.filter(exchange.mutate().request(builder.build()).build());
     }
 
+    private static final Set<String> RUTAS_PUBLICAS = Set.of("/auth/**");
+
     /**
      * Verifica si la ruta es pública y no requiere autenticación.
      *
@@ -83,15 +100,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
      * @return true si la ruta es pública, false en caso contrario
      */
     private boolean esRutaPublica(String path) {
-        String[] rutasPublicas = {
-            "/auth/**"
-        };
-        for (String patron : rutasPublicas) {
-            if (coincideRuta(path, patron)) {
-                return true;
-            }
-        }
-        return false;
+        return RUTAS_PUBLICAS.stream().anyMatch(patron -> coincideRuta(path, patron));
     }
 
     /**
@@ -114,6 +123,22 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     /**
+     * Obtiene el protocolo de la petición considerando el encabezado X-Forwarded-Proto.
+     *
+     * @param request solicitud HTTP original
+     * @return protocolo (http o https) desde el header o el esquema de la URI
+     */
+    private String obtenerForwardedProto(ServerHttpRequest request) {
+        String forwardedProto = request.getHeaders().getFirst(HEADER_X_FORWARDED_PROTO);
+        if (forwardedProto != null && !forwardedProto.isBlank()) {
+            return forwardedProto;
+        }
+
+        String scheme = request.getURI().getScheme();
+        return scheme != null && !scheme.isBlank() ? scheme : "http";
+    }
+
+    /**
      * Define el orden de ejecución del filtro. Se ejecuta con la máxima
      * prioridad para validar antes que otros filtros.
      *
@@ -121,6 +146,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
      */
     @Override
     public int getOrder() {
-        return Ordered.HIGHEST_PRECEDENCE;
+        return Ordered.HIGHEST_PRECEDENCE + 1;
     }
 }
