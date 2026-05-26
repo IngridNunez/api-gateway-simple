@@ -16,6 +16,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class GatewayHealthIndicator implements HealthIndicator {
 
+    private final DiscoveryClient discoveryClient;
+
     /**
      * Inyecta el cliente de descubrimiento para consultar servicios registrados.
      *
