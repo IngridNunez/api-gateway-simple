@@ -176,6 +176,12 @@ public class JwtService {
     @SuppressWarnings("unchecked")
     public Set<String> extractRoles(String token) {
         Claims claims = extractAllClaims(token);
-        return claims.get("roles", Set.class);
+        Object rolesObj = claims.get("roles");
+        if (rolesObj instanceof Set) {
+            return (Set<String>) rolesObj;
+        } else if (rolesObj instanceof java.util.List) {
+            return new java.util.HashSet<>((java.util.List<String>) rolesObj);
+        }
+        return null;
     }
 }
