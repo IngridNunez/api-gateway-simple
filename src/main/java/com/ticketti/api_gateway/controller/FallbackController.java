@@ -14,21 +14,22 @@ import com.ticketti.api_gateway.controller.dto.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Controlador que maneja las respuestas de fallback cuando un microservicio
- * no está disponible mediante el Circuit Breaker.
+ * Controlador que maneja las respuestas de fallback cuando un microservicio no
+ * está disponible mediante el Circuit Breaker.
  */
 @Slf4j
 @RestController
 @RequestMapping("/fallback")
 public class FallbackController {
+
     private static final String SERVICE_UNAVAILABLE = "Service Unavailable";
     private static final String HEADER_RETRY_AFTER = "Retry-After";
     private static final String HEADER_X_REQUEST_ID = "X-Request-ID";
 
     /**
      * Maneja las respuestas de fallback cuando un servicio no está disponible.
-     * Devuelve una respuesta estructurada con el estado 503 (Service Unavailable),
-     * headers de reintento y trazabilidad.
+     * Devuelve una respuesta estructurada con el estado 503 (Service
+     * Unavailable), headers de reintento y trazabilidad.
      *
      * @param service nombre del servicio que no está disponible
      * @param request solicitud HTTP original
@@ -45,15 +46,15 @@ public class FallbackController {
                 OffsetDateTime.now().toString(),
                 request.getPath().value(),
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
-            SERVICE_UNAVAILABLE,
+                SERVICE_UNAVAILABLE,
                 service,
                 message,
                 requestId
         );
 
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-            .header(HEADER_RETRY_AFTER, "30")
-            .header(HEADER_X_REQUEST_ID, requestId != null ? requestId : "unknown")
+                .header(HEADER_RETRY_AFTER, "30")
+                .header(HEADER_X_REQUEST_ID, requestId != null ? requestId : "unknown")
                 .body(errorResponse);
     }
 
@@ -65,13 +66,20 @@ public class FallbackController {
      */
     private String obtenerMensaje(String service) {
         return switch (service) {
-            case "auth" -> "El servicio de autenticación no está disponible. Intente más tarde.";
-            case "carrito" -> "El servicio de carrito no está disponible. Intente más tarde.";
-            case "usuarios" -> "El servicio de usuarios no está disponible. Intente más tarde.";
-            case "eventos" -> "El servicio de eventos no está disponible. Intente más tarde.";
-            case "donaciones" -> "El servicio de donaciones no está disponible. Intente más tarde.";
-            case "mensajeria" -> "El servicio de mensajería no está disponible. Intente más tarde.";
-            default -> "El servicio no está disponible temporalmente. Intente más tarde.";
+            case "auth" ->
+                "El servicio de autenticación no está disponible. Intente más tarde.";
+            case "carrito" ->
+                "El servicio de carrito no está disponible. Intente más tarde.";
+            case "usuarios" ->
+                "El servicio de usuarios no está disponible. Intente más tarde.";
+            case "eventos" ->
+                "El servicio de eventos no está disponible. Intente más tarde.";
+            case "donaciones" ->
+                "El servicio de donaciones no está disponible. Intente más tarde.";
+            case "mensajeria" ->
+                "El servicio de mensajería no está disponible. Intente más tarde.";
+            default ->
+                "El servicio no está disponible temporalmente. Intente más tarde.";
         };
     }
 }
