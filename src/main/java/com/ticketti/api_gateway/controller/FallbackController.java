@@ -1,6 +1,8 @@
 package com.ticketti.api_gateway.controller;
 
 import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,6 +58,45 @@ public class FallbackController {
                 .header(HEADER_RETRY_AFTER, "30")
                 .header(HEADER_X_REQUEST_ID, requestId != null ? requestId : "unknown")
                 .body(errorResponse);
+    }
+
+    // Métodos conveniencia usados por los tests: retornan un body sencillo con campos
+    // "error" y "message" y el status 503. Se mantienen para compatibilidad con
+    // consumidores que usan el endpoint genérico.
+    public ResponseEntity<Map<String, String>> authFallback() {
+        return buildSimpleFallbackResponse("auth", obtenerMensaje("auth"));
+    }
+
+    public ResponseEntity<Map<String, String>> carritoFallback() {
+        return buildSimpleFallbackResponse("carrito", obtenerMensaje("carrito"));
+    }
+
+    public ResponseEntity<Map<String, String>> usuariosFallback() {
+        return buildSimpleFallbackResponse("usuarios", obtenerMensaje("usuarios"));
+    }
+
+    public ResponseEntity<Map<String, String>> eventosFallback() {
+        return buildSimpleFallbackResponse("eventos", obtenerMensaje("eventos"));
+    }
+
+    public ResponseEntity<Map<String, String>> donacionesFallback() {
+        return buildSimpleFallbackResponse("donaciones", obtenerMensaje("donaciones"));
+    }
+
+    public ResponseEntity<Map<String, String>> mensajeriaFallback() {
+        return buildSimpleFallbackResponse("mensajeria", obtenerMensaje("mensajeria"));
+    }
+
+    public ResponseEntity<Map<String, String>> genericFallback() {
+        return buildSimpleFallbackResponse("generic", obtenerMensaje("generic"));
+    }
+
+    private ResponseEntity<Map<String, String>> buildSimpleFallbackResponse(String service, String message) {
+        Map<String, String> body = new HashMap<>();
+        body.put("error", SERVICE_UNAVAILABLE);
+        body.put("message", message);
+        body.put("service", service);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
     }
 
     /**
