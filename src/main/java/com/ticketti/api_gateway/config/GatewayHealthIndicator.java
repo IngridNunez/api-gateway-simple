@@ -1,5 +1,6 @@
 package com.ticketti.api_gateway.config;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,13 +17,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class GatewayHealthIndicator implements HealthIndicator {
 
-    private final DiscoveryClient discoveryClient;
+    // DiscoveryClient puede no estar presente en entornos de test aislados,
+    // por lo que no lo forzamos como dependencia obligatoria.
+    private DiscoveryClient discoveryClient;
 
-    /**
-     * Inyecta el cliente de descubrimiento para consultar servicios registrados.
-     *
-     * @param discoveryClient cliente de descubrimiento de Eureka
-     */
+    public GatewayHealthIndicator() {
+        // constructor por defecto para when DiscoveryClient is not available
+    }
+
     public GatewayHealthIndicator(DiscoveryClient discoveryClient) {
         this.discoveryClient = discoveryClient;
     }
@@ -34,6 +36,16 @@ public class GatewayHealthIndicator implements HealthIndicator {
      */
     @Override
     public Health health() {
+        if (discoveryClient == null) {
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("servicesCount", 0);
+            details.put("services", Collections.emptyList());
+            return Health.down()
+                    .withDetails(details)
+                    .withDetail("message", "DiscoveryClient no disponible en este entorno")
+                    .build();
+        }
+
         List<String> services = discoveryClient.getServices();
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("servicesCount", services.size());
@@ -51,3 +63,4 @@ public class GatewayHealthIndicator implements HealthIndicator {
                 .build();
     }
 }
+
