@@ -8,9 +8,19 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
+/**
+ * Configuración de CORS para permitir solicitudes desde los frontends autorizados.
+ * Define orígenes, métodos y headers permitidos.
+ */
 @Configuration
 public class CorsConfig {
 
+    /**
+     * Configura el filtro CORS para permitir solicitudes desde los orígenes configurados.
+     * Define métodos permitidos, headers explícitos y soporte para credenciales.
+     *
+     * @return filtro CORS configurado
+     */
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
@@ -21,7 +31,8 @@ public class CorsConfig {
                 "http://127.0.0.1:5173"
         ));
         corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        corsConfig.setAllowedHeaders(Arrays.asList("*"));
+        corsConfig.setAllowedHeaders(Arrays.asList(
+            "Authorization", "Content-Type", "X-Usuario", "X-Usuario-Rol", "X-Request-ID"));
         corsConfig.setAllowCredentials(true);
         corsConfig.setMaxAge(3600L);
 
