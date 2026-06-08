@@ -23,7 +23,7 @@ public class JwtService {
      * Clave secreta utilizada para firmar y verificar tokens JWT.
      * Se configura mediante la propiedad {@code jwt.secret}.
      */
-    @Value("${jwt.secret:ticketti-secret-key-2024-for-jwt-signing-and-verification-only}")
+    @Value("${jwt.secret:clave-secreta-super-larga-de-minimo-32-caracteres}")
     private String secretKey;
 
     /**

@@ -91,7 +91,22 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         return chain.filter(exchange.mutate().request(builder.build()).build());
     }
 
-    private static final Set<String> RUTAS_PUBLICAS = Set.of("/auth/**");
+    private static final Set<String> RUTAS_PUBLICAS = Set.of(
+        // ═ Autenticación ═
+        "/auth/**",
+        "/api/v1/usuarios/validar-credenciales",  // Login interno BFF → API Gateway
+        "/api/v1/usuarios",                       // Registro de usuario
+        // ═ Eventos ═
+        "/api/v1/eventos",                        // Listar eventos
+        "/api/v1/eventos/**",                     // Detalle de evento
+        "/api/v1/Eventos/**",                     // Compatibilidad case
+        // ═ Carrito ═
+        "/api/v1/Carrito/**",                     // Carrito (case original)
+        "/api/v1/carrito/**",                     // Carrito (lowercase)
+        // ═ Donaciones / Causas públicas ═
+        "/api/v1/causas/activas",                 // Causas activas públicas
+        "/api/v1/organizaciones/activas"          // Organizaciones activas públicas
+    );
 
     /**
      * Verifica si la ruta es pública y no requiere autenticación.
