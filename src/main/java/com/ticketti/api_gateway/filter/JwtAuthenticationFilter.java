@@ -105,7 +105,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         "/api/v1/carrito/**",                     // Carrito (lowercase)
         // ═ Donaciones / Causas públicas ═
         "/api/v1/causas/activas",                 // Causas activas públicas
-        "/api/v1/organizaciones/activas"          // Organizaciones activas públicas
+        "/api/v1/organizaciones/activas",         // Organizaciones activas públicas
+        // ═ Notificaciones ═
+        "/api/v1/notificaciones/**"               // Notificaciones (BFF valida JWT)
     );
 
     /**
