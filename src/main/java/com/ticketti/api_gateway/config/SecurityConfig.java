@@ -45,6 +45,8 @@ public class SecurityConfig {
                         // ── Causas y Organizaciones públicas ──
                         .pathMatchers("/api/v1/causas/activas").permitAll()
                         .pathMatchers("/api/v1/organizaciones/activas").permitAll()
+                        // ── Notificaciones ──
+                        .pathMatchers("/api/v1/notificaciones/historial/**").permitAll()
                         .anyExchange().authenticated()
                 )
                 .build();

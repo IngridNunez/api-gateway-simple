@@ -8,7 +8,8 @@ services:
     environment:
       - SERVER_PORT=8222
       - SPRING_CONFIG_IMPORT=${SPRING_CONFIG_IMPORT:-optional:configserver:http://host.docker.internal:8888}
-      - JWT_SECRET=${JWT_SECRET:-ticketti-secret-key-2024-for-jwt-signing-and-verification-only}
+      - JWT_SECRET=${JWT_SECRET:-clave-secreta-super-larga-de-minimo-32-caracteres}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
     ports:
       - "8222:8222"
 
