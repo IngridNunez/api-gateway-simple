@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    container_name: api-gateway
+    restart: unless-stopped
+    networks:
+      - ticketti-network
+    environment:
+      - SERVER_PORT=8222
+      - SPRING_CONFIG_IMPORT=${SPRING_CONFIG_IMPORT:-optional:configserver:http://host.docker.internal:8888}
+      - JWT_SECRET=${JWT_SECRET:-ticketti-secret-key-2024-for-jwt-signing-and-verification-only}
+    ports:
+      - "8222:8222"
+
+networks:
+  ticketti-network:
+    external: true

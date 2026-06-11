@@ -1,150 +1,166 @@
 package com.ticketti.api_gateway.filter;
 
-import com.ticketti.api_gateway.config.JwtService;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Set;
+
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
+
+import com.ticketti.api_gateway.config.JwtService;
+
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-
+/**
+ * Filtro global para autenticación JWT en el API Gateway. Intercepta todas las
+ * peticiones y valida el token JWT antes de permitir el acceso.
+ */
 @Slf4j
 @Component
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
+    private static final String HEADER_X_FORWARDED_PROTO = "X-Forwarded-Proto";
+    private static final String HEADER_X_REQUEST_ID = "X-Request-ID";
+
     private final JwtService jwtService;
 
-    // Rutas públicas que no requieren autenticación
-    private static final List<String> PUBLIC_PATHS = List.of(
-            "/auth/",
-            "/auth/login",
-            "/auth/register",
-            "/actuator/",
-            "/fallback/",
-            "/v3/api-docs",
-            "/swagger-ui",
-            "/swagger-ui.html",
-            "/webjars",
-            "/eureka"
-    );
-
+    /**
+     * Constructor con inyección de dependencia mediante Lombok.
+     *
+     * @param jwtService servicio para manejo de tokens JWT
+     */
     public JwtAuthenticationFilter(JwtService jwtService) {
         this.jwtService = jwtService;
     }
 
+    /**
+     * Filtra las peticiones entrantes validando el token JWT. Las rutas
+     * públicas (/auth/**) son excluidas de la validación.
+     *
+     * @param exchange el intercambio del servidor web
+     * @param chain la cadena de filtros
+     * @return Mono que completa el procesamiento de la petición
+     */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        String path = request.getURI().getPath();
+        String path = request.getPath().value();
+        String requestId = request.getHeaders().getFirst(HEADER_X_REQUEST_ID);
 
-        log.debug("Processing request: {}", path);
-
-        // Permitir preflight CORS sin autenticación
-        if (HttpMethod.OPTIONS.equals(request.getMethod())) {
-            return handlePreflight(exchange);
-        }
-
-        // Registro público de usuarios (sin token)
-        if (HttpMethod.POST.equals(request.getMethod()) && "/api/v1/usuarios".equals(path)) {
+        if (esRutaPublica(path)) {
             return chain.filter(exchange);
         }
 
-        // Lectura pública de eventos para visitantes (home, listado y búsqueda).
-        if (HttpMethod.GET.equals(request.getMethod()) && isPublicEventosPath(path)) {
-            return chain.filter(exchange);
-        }
-
-        // Verificar si la ruta es pública
-        if (isPublicPath(path)) {
-            log.debug("Public path accessed: {}", path);
-            return chain.filter(exchange);
-        }
-
-        // Obtener el header de autorización
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        if (!StringUtils.hasText(authHeader) || !authHeader.startsWith("Bearer ")) {
-            log.warn("Missing or invalid Authorization header for path: {}", path);
-            return onError(exchange, "Missing or invalid Authorization header", HttpStatus.UNAUTHORIZED);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.warn("Falta o es invalido el header Authorization para la ruta: {}, requestId={}", path, requestId);
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
         }
 
         String token = authHeader.substring(7);
 
-        if (!Boolean.TRUE.equals(jwtService.validateToken(token))) {
-            log.warn("Invalid or expired token for path: {}", path);
-            return onError(exchange, "Invalid or expired token", HttpStatus.UNAUTHORIZED);
+        if (!jwtService.validateToken(token)) {
+            log.warn("Token JWT invalido o expirado para la ruta: {}, requestId={}", path, requestId);
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
         }
 
-        // Extraer información del usuario y agregarla a los headers
         String username = jwtService.extractUsername(token);
-        ServerHttpRequest mutatedRequest = request.mutate()
-                .header("X-User-Name", username)
-                .header("X-User-Roles", String.join(",", jwtService.extractRoles(token)))
-                .build();
+        Set<String> roles = jwtService.extractRoles(token);
 
-        ServerWebExchange mutatedExchange = exchange.mutate()
-                .request(mutatedRequest)
-                .build();
+        log.debug("Usuario autenticado: {}, roles: {}", username, roles);
 
-        log.debug("Token validated successfully for user: {} on path: {}", username, path);
-        return chain.filter(mutatedExchange);
-    }
+        ServerHttpRequest.Builder builder = request.mutate()
+                .header("X-Usuario", username)
+                .header("X-Forwarded-For", request.getRemoteAddress() != null
+                        ? request.getRemoteAddress().getAddress().getHostAddress() : "unknown")
+            .header(HEADER_X_FORWARDED_PROTO, obtenerForwardedProto(request))
+            .header(HEADER_X_REQUEST_ID, requestId != null && !requestId.isBlank() ? requestId : "unknown");
 
-    private boolean isPublicPath(String path) {
-        return PUBLIC_PATHS.stream()
-                .anyMatch(path::startsWith);
-    }
-
-    private boolean isPublicEventosPath(String path) {
-        return path.startsWith("/api/v1/Eventos/")
-                || path.startsWith("/api/v1/eventos/");
-    }
-
-    private Mono<Void> handlePreflight(ServerWebExchange exchange) {
-        ServerHttpResponse response = exchange.getResponse();
-        String origin = exchange.getRequest().getHeaders().getFirst(HttpHeaders.ORIGIN);
-
-        response.setStatusCode(HttpStatus.OK);
-        addCorsHeaders(response, origin);
-        return response.setComplete();
-    }
-
-    private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus) {
-        ServerHttpResponse response = exchange.getResponse();
-        String origin = exchange.getRequest().getHeaders().getFirst(HttpHeaders.ORIGIN);
-
-        response.setStatusCode(httpStatus);
-        response.getHeaders().add("Content-Type", "application/json");
-        addCorsHeaders(response, origin);
-
-        String errorBody = String.format("{\"error\": \"%s\", \"status\": %d}", err, httpStatus.value());
-
-        return response.writeWith(Mono.just(response.bufferFactory()
-                .wrap(errorBody.getBytes(StandardCharsets.UTF_8))));
-    }
-
-    private void addCorsHeaders(ServerHttpResponse response, String origin) {
-        if (origin != null && !origin.isBlank()) {
-            response.getHeaders().set("Access-Control-Allow-Origin", origin);
+        if (roles != null && !roles.isEmpty()) {
+            builder.header("X-Usuario-Rol", String.join(",", roles));
         }
-        response.getHeaders().set("Vary", "Origin");
-        response.getHeaders().set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
-        response.getHeaders().set("Access-Control-Allow-Headers", "Authorization,Content-Type,Accept,Origin");
-        response.getHeaders().set("Access-Control-Allow-Credentials", "true");
+
+        return chain.filter(exchange.mutate().request(builder.build()).build());
     }
 
+    private static final Set<String> RUTAS_PUBLICAS = Set.of(
+        // ═ Autenticación ═
+        "/auth/**",
+        "/api/v1/usuarios/validar-credenciales",  // Login interno BFF → API Gateway
+        "/api/v1/usuarios",                       // Registro de usuario
+        // ═ Eventos ═
+        "/api/v1/eventos",                        // Listar eventos
+        "/api/v1/eventos/**",                     // Detalle de evento
+        "/api/v1/Eventos/**",                     // Compatibilidad case
+        // ═ Carrito ═
+        "/api/v1/Carrito/**",                     // Carrito (case original)
+        "/api/v1/carrito/**",                     // Carrito (lowercase)
+        // ═ Donaciones / Causas públicas ═
+        "/api/v1/causas/activas",                 // Causas activas públicas
+        "/api/v1/organizaciones/activas"          // Organizaciones activas públicas
+    );
+
+    /**
+     * Verifica si la ruta es pública y no requiere autenticación.
+     *
+     * @param path la ruta solicitada
+     * @return true si la ruta es pública, false en caso contrario
+     */
+    private boolean esRutaPublica(String path) {
+        return RUTAS_PUBLICAS.stream().anyMatch(patron -> coincideRuta(path, patron));
+    }
+
+    /**
+     * Comprueba si la ruta coincide con el patrón especificado. Soporta
+     * patrones con /** al final para coincidencia por prefijo.
+     *
+     * @param path la ruta a comparar
+     * @param patron el patrón de ruta (ej: /auth/**)
+     * @return true si coinciden, false en caso contrario
+     */
+    private boolean coincideRuta(String path, String patron) {
+        if (patron.equals("/**")) {
+            return true;
+        }
+        if (patron.endsWith("/**")) {
+            String prefijo = patron.substring(0, patron.length() - 3);
+            return path.startsWith(prefijo);
+        }
+        return path.equals(patron);
+    }
+
+    /**
+     * Obtiene el protocolo de la petición considerando el encabezado X-Forwarded-Proto.
+     *
+     * @param request solicitud HTTP original
+     * @return protocolo (http o https) desde el header o el esquema de la URI
+     */
+    private String obtenerForwardedProto(ServerHttpRequest request) {
+        String forwardedProto = request.getHeaders().getFirst(HEADER_X_FORWARDED_PROTO);
+        if (forwardedProto != null && !forwardedProto.isBlank()) {
+            return forwardedProto;
+        }
+
+        String scheme = request.getURI().getScheme();
+        return scheme != null && !scheme.isBlank() ? scheme : "http";
+    }
+
+    /**
+     * Define el orden de ejecución del filtro. Se ejecuta con la máxima
+     * prioridad para validar antes que otros filtros.
+     *
+     * @return el orden de prioridad del filtro
+     */
     @Override
     public int getOrder() {
-        return -100; // Ejecutar antes que otros filtros
+        return Ordered.HIGHEST_PRECEDENCE + 1;
     }
 }

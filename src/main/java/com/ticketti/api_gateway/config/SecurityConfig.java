@@ -31,7 +31,21 @@ public class SecurityConfig {
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .authorizeExchange(exchange -> exchange // Permite acceso público a rutas específicas, el resto requiere autenticación
                         .pathMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .anyExchange().permitAll()
+                        // ── Autenticación ──
+                        .pathMatchers("/auth/**").permitAll()
+                        .pathMatchers("/api/v1/usuarios").permitAll()                          // Registro
+                        .pathMatchers("/api/v1/usuarios/validar-credenciales").permitAll()     // Login BFF
+                        // ── Eventos ──
+                        .pathMatchers("/api/v1/eventos").permitAll()
+                        .pathMatchers("/api/v1/eventos/**").permitAll()
+                        .pathMatchers("/api/v1/Eventos/**").permitAll()
+                        // ── Carrito ──
+                        .pathMatchers("/api/v1/Carrito/**").permitAll()
+                        .pathMatchers("/api/v1/carrito/**").permitAll()
+                        // ── Causas y Organizaciones públicas ──
+                        .pathMatchers("/api/v1/causas/activas").permitAll()
+                        .pathMatchers("/api/v1/organizaciones/activas").permitAll()
+                        .anyExchange().authenticated()
                 )
                 .build();
     }
