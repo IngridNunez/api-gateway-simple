@@ -7,47 +7,27 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
 /**
- * Configuración de seguridad de Spring Security para el API Gateway.
- * Define rutas públicas y protegidas, y deshabilita autenticación básica y formularios.
+ * Configuración de seguridad de Spring Security para la aplicación.
+ * Deja la API accesible sin autenticación y deshabilita mecanismos interactivos.
  */
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
     /**
-     * Define la cadena de filtros de seguridad de Spring Security para el gateway.
-     * Configura el acceso a rutas públicas y protege el resto con autenticación.
+         * Define la cadena de filtros de seguridad de Spring Security.
      *
      * @param http objeto de configuración de seguridad HTTP reactiva
      * @return cadena de filtros de seguridad configurada
      */
     @Bean
-    // Configura la seguridad HTTP para el API Gateway, permitiendo acceso público a ciertas rutas, 
-    //  requiriendo autenticación para el resto
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
-                .authorizeExchange(exchange -> exchange // Permite acceso público a rutas específicas, el resto requiere autenticación
-                        .pathMatchers("/actuator/health", "/actuator/info").permitAll()
-                        // ── Autenticación ──
-                        .pathMatchers("/auth/**").permitAll()
-                        .pathMatchers("/api/v1/usuarios").permitAll()                          // Registro
-                        .pathMatchers("/api/v1/usuarios/validar-credenciales").permitAll()     // Login BFF
-                        // ── Eventos ──
-                        .pathMatchers("/api/v1/eventos").permitAll()
-                        .pathMatchers("/api/v1/eventos/**").permitAll()
-                        .pathMatchers("/api/v1/Eventos/**").permitAll()
-                        // ── Carrito ──
-                        .pathMatchers("/api/v1/Carrito/**").permitAll()
-                        .pathMatchers("/api/v1/carrito/**").permitAll()
-                        // ── Causas y Organizaciones públicas ──
-                        .pathMatchers("/api/v1/causas/activas").permitAll()
-                        .pathMatchers("/api/v1/organizaciones/activas").permitAll()
-                        // ── Notificaciones ──
-                        .pathMatchers("/api/v1/notificaciones/historial/**").permitAll()
-                        .anyExchange().authenticated()
+            .authorizeExchange(exchange -> exchange
+                .anyExchange().permitAll()
                 )
                 .build();
     }
