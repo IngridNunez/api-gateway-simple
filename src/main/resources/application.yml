@@ -7,7 +7,7 @@ spring:
       routes:
         # Ruta hacia ms-usuarios
         - id: usuarios-service
-          uri: http://host.docker.internal
+          uri: http://host.docker.internal:8085
           predicates:
             - Path=/apiv1/usuarios/**
 

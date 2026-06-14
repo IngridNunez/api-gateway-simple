@@ -3,16 +3,12 @@ package com.ticketti.api_gateway.config;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class SecurityConfigTest {
 
-    @Autowired
-    private SecurityConfig securityConfig;
+    private final SecurityConfig securityConfig = new SecurityConfig();
 
     @Test
     void configuracionSeguridad_NoEsNula() {
