@@ -26,8 +26,10 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
-            .authorizeExchange(exchange -> exchange
-                .anyExchange().permitAll()
+            .authorizeExchange(exchange -> exchange //acá se exponen  el acceso a las rutas publicas
+
+                .anyExchange().permitAll() 
+            
                 )
                 .build();
     }

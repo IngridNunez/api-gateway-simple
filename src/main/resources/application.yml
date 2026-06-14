@@ -2,16 +2,54 @@ spring:
   application:
     name: api-gateway
 
+  cloud:
+    gateway:
+      routes:
+        # Ruta hacia ms-usuarios
+        - id: usuarios-service
+          uri: http://host.docker.internal
+          predicates:
+            - Path=/apiv1/usuarios/**
+
+        - id: inventario-service
+          uri: http://host.docker.internal:9091
+          predicates:
+            - Path=/apiv1/inventario/**
+
+        - id: proveedores-service
+          uri: http://host.docker.internal:8089 
+          predicates:
+            - Path=/apiv1/proveedores/**
+
+# Puerto del API Gateway
+server:
+  port: 8080
+
 # Logging
 logging:
   level:
     "[org.springframework.security]": INFO
+    "[org.springframework.cloud.gateway]": DEBUG
 
+# Actuator / monitoreo8085
 management:
   endpoints:
     web:
       exposure:
-        include: health, info, metrics, prometheus, threaddump
+        include: health, info, metrics, threaddump
   endpoint:
     health:
       show-details: always
+
+# URL del microservicio usuario
+usuario:
+  service:
+    url: http://host.docker.internal:8085/
+
+inventario:
+  service:
+    url: http://host.docker.internal:9091/
+
+proveedores:
+  service:
+    url: http://host.docker.internal:8089/
